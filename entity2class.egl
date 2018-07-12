@@ -60,7 +60,7 @@ public class [%=e.name%]{
 	
 	[%}else{%]
 	public void add[%=r.name.ftuc()%]([%=r.type.name%] element){
-		element.set[%=e.name.ftuc()%](this);
+		element.set[%=r.correspondence.name.ftuc()%](this);
 	}
 	
 	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%](){

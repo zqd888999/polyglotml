@@ -3,7 +3,7 @@ rule Entity2Java
 
 	template : "entity2class.egl"
 
-	target : "src/" + e.name + ".java"
+	target : "../myProject/src/" + e.name + ".java"
 }
 
 
@@ -12,5 +12,5 @@ rule Database2Java
 
 	template : "database2class.egl"
 
-	target : "src/PolyglotDatabase.java"
+	target : "../myProject/src/PolyglotDatabase.java"
 }

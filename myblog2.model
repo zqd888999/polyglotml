@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ASCII"?>
+<Schema xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns="polyglotml" xmi:id="_9sXLgGvEEei1994L2u_zvQ">
+  <entities xmi:id="_HQkXkIQtEeiOP45iPxpkOA" name="Person" database="_Gk7usGvFEei1994L2u_zvQ">
+    <fields xmi:id="_hxZ8gIQuEeiOP45iPxpkOA" name="name" type="String"/>
+    <references xmi:id="_KFsxoIQtEeiOP45iPxpkOA" name="sons" many="true" type="_HQkXkIQtEeiOP45iPxpkOA" correspondence="_EBq1wIT1EeizLpiyg3xWcQ"/>
+    <references xmi:id="_OV2_QIQtEeiOP45iPxpkOA" name="daughter" many="true" type="_HQkXkIQtEeiOP45iPxpkOA" correspondence="_zM20wIT0EeizLpiyg3xWcQ"/>
+    <references xmi:id="_zM20wIT0EeizLpiyg3xWcQ" name="dad" type="_HQkXkIQtEeiOP45iPxpkOA" correspondence="_OV2_QIQtEeiOP45iPxpkOA"/>
+    <references xmi:id="_EBq1wIT1EeizLpiyg3xWcQ" name="father" type="_HQkXkIQtEeiOP45iPxpkOA" correspondence="_KFsxoIQtEeiOP45iPxpkOA"/>
+  </entities>
+  <databases xmi:id="_AgYyUGvFEei1994L2u_zvQ" type="Mysql" name="test" host="localhost" port="3306" user="root" password=""/>
+  <databases xmi:id="_Gk7usGvFEei1994L2u_zvQ" databasetype="Document" type="MongoDB" name="newtest" host="localhost" port="27017"/>
+</Schema>

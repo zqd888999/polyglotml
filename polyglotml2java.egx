@@ -1,0 +1,16 @@
+rule Entity2Java 
+	transform e : Entity {
+
+	template : "entity2class.egl"
+
+	target : "src/" + e.name + ".java"
+}
+
+
+rule Database2Java 
+	transform s :  Schema{
+
+	template : "database2class.egl"
+
+	target : "src/PolyglotDatabase.java"
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ASCII"?>
+<Schema xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns="polyglotml" xmi:id="_9sXLgGvEEei1994L2u_zvQ">
+  <entities xmi:id="_-fRPIGvEEei1994L2u_zvQ" name="Post" database="_AgYyUGvFEei1994L2u_zvQ">
+    <fields xmi:id="_HIf5UGvGEei1994L2u_zvQ" name="Title" type="String"/>
+    <fields xmi:id="_LJsn0H0zEeiO7apSZkiYzQ" name="Page" type="int"/>
+    <fields xmi:id="_LgQGoH0zEeiO7apSZkiYzQ" name="Price" type="double"/>
+    <references xmi:id="_fo6AoHu3EeiVEKIibWzJUw" name="comments" many="true" type="__LGaYGvEEei1994L2u_zvQ" correspondence="_sMYIQHu3EeiVEKIibWzJUw"/>
+    <references xmi:id="_kBXOoHu3EeiVEKIibWzJUw" name="author" type="_-3logGvEEei1994L2u_zvQ" correspondence="_ineDgHu3EeiVEKIibWzJUw"/>
+  </entities>
+  <entities xmi:id="_-3logGvEEei1994L2u_zvQ" name="Author" database="_AgYyUGvFEei1994L2u_zvQ">
+    <fields xmi:id="_qCbdYHuwEeiVEKIibWzJUw" name="name" type="String"/>
+    <references xmi:id="_ineDgHu3EeiVEKIibWzJUw" name="post" type="_-fRPIGvEEei1994L2u_zvQ" correspondence="_kBXOoHu3EeiVEKIibWzJUw"/>
+    <references xmi:id="_yLW54H4BEeiL-MugLJjKKw" name="fans" many="true" type="_r-mcsH4BEeiL-MugLJjKKw" correspondence="_0jU20H4BEeiL-MugLJjKKw"/>
+  </entities>
+  <entities xmi:id="__LGaYGvEEei1994L2u_zvQ" name="Comment" database="_Gk7usGvFEei1994L2u_zvQ">
+    <fields xmi:id="_tBVegHuwEeiVEKIibWzJUw" name="title" type="String"/>
+    <fields xmi:id="_vPtakHuwEeiVEKIibWzJUw" name="body" type="String"/>
+    <references xmi:id="_sMYIQHu3EeiVEKIibWzJUw" name="post" type="_-fRPIGvEEei1994L2u_zvQ" correspondence="_fo6AoHu3EeiVEKIibWzJUw"/>
+    <references xmi:id="_t8wgwHu3EeiVEKIibWzJUw" name="replies" many="true" type="__LGaYGvEEei1994L2u_zvQ" correspondence="_cCjvkHu4EeiVEKIibWzJUw"/>
+    <references xmi:id="_cCjvkHu4EeiVEKIibWzJUw" name="replyto" type="__LGaYGvEEei1994L2u_zvQ" correspondence="_t8wgwHu3EeiVEKIibWzJUw"/>
+  </entities>
+  <entities xmi:id="_r-mcsH4BEeiL-MugLJjKKw" name="Fan" database="_AgYyUGvFEei1994L2u_zvQ">
+    <fields xmi:id="_vsayQH4BEeiL-MugLJjKKw" name="name" type="String"/>
+    <references xmi:id="_0jU20H4BEeiL-MugLJjKKw" name="idol" many="true" type="_-3logGvEEei1994L2u_zvQ" correspondence="_yLW54H4BEeiL-MugLJjKKw"/>
+  </entities>
+  <databases xmi:id="_AgYyUGvFEei1994L2u_zvQ" type="Mysql" name="test" host="localhost" port="3306" user="root" password=""/>
+  <databases xmi:id="_Gk7usGvFEei1994L2u_zvQ" databasetype="Document" type="MongoDB" name="newtest" host="localhost" port="27017"/>
+</Schema>

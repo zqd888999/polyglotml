@@ -1,0 +1,46 @@
+@namespace(uri="polyglotml", prefix="")
+package polyglotml;
+
+class Schema {
+  	val Entity[*] entities;
+  	val Database[*] databases;
+}
+
+class Entity {
+ 	attr String name;
+  	val Field[*] fields;
+  	val Reference[*] references;
+  	ref Database database;
+}
+
+class Field {
+  	attr String name;
+ 	attr String type;
+}
+
+class Reference {
+  	attr String name;
+  	attr boolean many;
+  	ref Entity type;
+  	ref Reference correspondence;
+}
+
+class Database{
+	attr Databasetype databasetype;
+	attr String type;
+	attr String name;
+	attr String host;
+	attr String port;
+	attr String user;
+	attr String password;
+}
+
+enum Databasetype {
+  Rational = 0;
+  Key_Value = 1;
+  Document = 2;
+  Column_family = 3;
+  Graph = 4;
+  Other = 5;
+}
+

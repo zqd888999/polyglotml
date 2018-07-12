@@ -1,0 +1,460 @@
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import org.bson.Document;
+import com.mongodb.MongoClient;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
+
+public class PolyglotDatabase {
+
+	public class Mysql{
+		protected  Connection conn;
+		
+		public Mysql(String url, String username, String password) {
+			 try {
+					Class.forName("com.mysql.jdbc.Driver");
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+				}
+			 try {
+					conn = DriverManager.getConnection(url,username,password);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+		}
+		
+		public boolean runSQL(String sql) {
+			Statement stmt;
+			try {
+				stmt = conn.createStatement();
+				int result;
+				result = stmt.executeUpdate(sql);
+				if (result != -1) 
+					return true;
+				else
+					return false;
+			} catch (SQLException e) {
+				e.printStackTrace();
+			} 
+			return false;
+		}
+		
+		public boolean TableIsExit(String table) {
+			Statement stmt;
+			try {
+				String sql = "show tables like \""+table+"\"";
+				stmt = conn.createStatement();
+				ResultSet resultSet = stmt.executeQuery(sql);
+				if (resultSet.next()) 
+					return true;
+				else
+					return false;
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+			return false;
+		}
+        
+		public ResultSet  findTable(String name) {
+			String sql = "SELECT * FROM "+name;
+			Statement stmt;
+			try {
+				stmt = conn.createStatement();
+				if(TableIsExit(name))
+					return stmt.executeQuery(sql);
+				else
+					return null;
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+	}
+	
+	[%for(d in s.databases){
+	if(d.databasetype.value =0){%]
+	protected Mysql mysql_[%=d.name%];
+	[%}if(d.databasetype.value =2){%]
+	protected MongoDatabase mongo_[%=d.name%];
+	[%}}%]
+
+	public PolyglotDatabase(){
+	[%for(d in s.databases){
+	if(d.databasetype.value =0){%]
+		String url = "jdbc:mysql://[%=d.host%]:[%=d.port%]/[%=d.name%]?serverTimezone=GMT";
+		mysql_[%=d.name%] = new Mysql(url,"[%=d.user%]","[%=d.password%]");
+	[%}}%]
+
+	[%for(d in s.databases){
+	if(d.databasetype.value =2){%]
+		MongoClient mongoClient = new MongoClient( "[%=d.host%]" , [%=d.port%] );
+		mongo_[%=d.name%]= mongoClient.getDatabase("[%=d.name%]");
+	[%}}%]
+	
+	[%for(e in s.entities){
+	if(e.database.databasetype.value =0){%]
+		if(!mysql_[%=e.database.name%].TableIsExit("[%=e.name%]")) 
+			mysql_[%=e.database.name%].runSQL("CREATE TABLE [%=e.name%](id int[%for (f in e.fields) 
+		{%],[%=f.name%] [%=my(f.type)%][%}
+		for(r in e.references){if(r.many =false){%],[%=r.name%] int[%}}%])");
+		
+	[%}if(e.database.databasetype.value =2){%]
+		mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		
+	[%}for(r in e.references){
+	var b = manytomany(r,e);
+	if(b){
+	if(e.database.databasetype.value =0){%]
+		if(!mysql_[%=e.database.name%].TableIsExit("[%=r.name%]_[%=e.name%]")) 
+			mysql_[%=e.database.name%].runSQL("CREATE TABLE [%=r.name%]_[%=e.name%]([%=r.correspondence.name%] int,[%=r.name%] int)");
+			
+	[%}if(e.database.databasetype.value =2){%]
+		mongo_[%=e.database.name%].getCollection("[%=r.name%]_[%=e.name%]");
+		
+	[%}}}}%]
+	}
+	
+	[%for(e in s.entities){
+	if(e.database.databasetype.value =0){%]
+	public [%=e.name%] create[%=e.name.ftuc()%]() {
+		ResultSet rs = mysql_[%=e.database.name%].findTable("[%=e.name%]");
+		int id =0;
+		try {
+			while(rs.next())
+				id=rs.getInt("id");
+			id++;
+			[%=e.name%] [%=e.name.toLowerCase()%] = new [%=e.name%](this);
+			[%=e.name.toLowerCase()%].setID(id);
+			mysql_[%=e.database.name%].runSQL("INSERT INTO [%=e.name%](id) VALUES("+id+")");
+			return [%=e.name.toLowerCase()%];
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public void set([%=e.name%] [%=e.name.toLowerCase()%], String name, Object value) {
+		if(value ==null)
+			mysql_[%=e.database.name%].runSQL("UPDATE [%=e.name%] SET "+name+" = null WHERE id = "+[%=e.name.toLowerCase()%].getID());
+		else {
+			if(value.getClass().getSimpleName().equals("String"))
+				mysql_[%=e.database.name%].runSQL("UPDATE [%=e.name%] SET "+name+" = '"+value+"' WHERE id = "+[%=e.name.toLowerCase()%].getID());
+			else
+				mysql_[%=e.database.name%].runSQL("UPDATE [%=e.name%] SET "+name+" = "+value+" WHERE id = "+[%=e.name.toLowerCase()%].getID());
+			}
+	}
+	
+	public String get([%=e.name%] [%=e.name.toLowerCase()%], String name) {
+		ResultSet rs =mysql_[%=e.database.name%].findTable("[%=e.name%]");
+		try {
+			while(rs.next())
+			{
+				if(rs.getInt("id")==[%=e.name.toLowerCase()%].getID())
+					return rs.getString(name);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	[%}if(e.database.databasetype.value =2){%]
+	public [%=e.name%] create[%=e.name.ftuc()%]() {
+		MongoCollection<Document> [%=e.name.toLowerCase()%]s = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		FindIterable<Document> documents = [%=e.name.toLowerCase()%]s.find();
+		int id =0;
+		for (Document document : documents) 
+		   id = document.getInteger("id");
+		id++;
+		[%=e.name%] [%=e.name.toLowerCase()%] = new [%=e.name%](this);
+		[%=e.name.toLowerCase()%].setID(id);
+		Document doc = new Document();
+	    doc.put("id", id);
+	    [%=e.name.toLowerCase()%]s.insertOne(doc);
+		return [%=e.name.toLowerCase()%];
+	}
+	
+	public void set([%=e.name%] [%=e.name.toLowerCase()%], String name, Object value) {
+		MongoCollection<Document> [%=e.name.toLowerCase()%]s = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		[%=e.name.toLowerCase()%]s.updateOne(Filters.eq("id", [%=e.name.toLowerCase()%].getID()), new Document("$set",new Document(name,value)));	
+	}
+	
+	public String get([%=e.name%] [%=e.name.toLowerCase()%], String name) {
+		MongoCollection<Document> [%=e.name.toLowerCase()%]s = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		FindIterable<Document> documents = [%=e.name.toLowerCase()%]s.find();
+		for (Document document : documents) {
+		    if(document.getInteger("id")==[%=e.name.toLowerCase()%].getID())
+		    	return document.get(name).toString();
+		}
+		return null;
+	}
+	
+	[%}}%]
+	[%for(e in s.entities){
+		for(r in e.references){
+		if(r.correspondence.many = true and r.many =true){
+		if(e.database.databasetype.value =0){%]
+	public void set[%=r.name.ftuc()%]([%=e.name%] [%=e.name.toLowerCase()%],[%=r.type.name%] [%=r.type.name.toLowerCase()%]){
+		mysql_[%=e.database.name%].runSQL("INSERT INTO [%=r.name%]_[%=e.name%]([%=r.correspondence.name%] ,[%=r.name%] ) VALUES("+[%=e.name.toLowerCase()%].getID()+","+[%=r.type.name.toLowerCase()%].getID()+")");
+	}
+		
+	[%}if(e.database.databasetype.value =2){%]
+	public void set[%=r.name.ftuc()%]([%=e.name%] [%=e.name.toLowerCase()%],[%=r.type.name%] [%=r.type.name.toLowerCase()%]){
+		MongoCollection<Document> table = mongo_[%=e.database.name%].getCollection("[%=r.name%]_[%=e.name%]");
+		Document doc = new Document();
+	    doc.put("[%=r.correspondence.name%]", [%=e.name.toLowerCase()%].getID());
+	    doc.put("[%=r.name%]", [%=r.type.name.toLowerCase()%].getID());
+		table.insertOne(doc);
+	}
+	
+	[%}}}}%]
+	[%for(e in s.entities){
+		for(r in e.references){
+			if(r.many= false){
+				if(e.database.databasetype.value =0){%]
+	public [%=r.type.name%] get[%=r.name%]([%=e.name%] element) {
+		ResultSet rs =mysql_[%=e.database.name%].findTable("[%=e.name%]");
+		try {
+			while(rs.next())
+			{
+				if(rs.getInt("id")==element.getID())
+				{
+					[%=r.type.name%] [%=r.type.name.toLowerCase()%] =new [%=r.type.name%](this);
+					[%=r.type.name.toLowerCase()%].setID(rs.getInt("[%=r.name%]"));
+					return [%=r.type.name.toLowerCase()%];
+				}
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	[%}if(e.database.databasetype.value =2){%]
+	public [%=r.type.name%] get[%=r.name%]([%=e.name%] element) {
+		MongoCollection<Document> table = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		FindIterable<Document> documents = table.find();
+		for (Document document : documents) {
+		    if(document.getInteger("id")==element.getID()) {
+		    	if(document.getInteger("[%=r.name%]")!=null) {
+		    	[%=r.type.name%]  [%=r.type.name.toLowerCase()%] = new [%=r.type.name%](this);
+		    	[%=r.type.name.toLowerCase()%].setID(document.getInteger("[%=r.name%]"));
+		    	return [%=r.type.name.toLowerCase()%];
+		    	}
+		    }
+		}
+		return null;
+	}
+	
+	[%}}else{if(r.correspondence.many = true and r.many =true){
+	if(r.type.database.databasetype.value=0){%]
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%]([%=e.name%] element) {
+		ResultSet rs =mysql_[%=r.type.database.name%].findTable("[%=r.name%]_[%=e.name%]");
+		ArrayList<[%=r.type.name%]> [%=r.type.name.toLowerCase()%]s = new ArrayList<[%=r.type.name%]>();
+		try {
+			while(rs.next())
+			{
+				if(rs.getInt("[%=r.correspondence.name%]")==element.getID())
+				{
+					[%=r.type.name%] [%=r.type.name.toLowerCase()%] =new [%=r.type.name%](this);
+					[%=r.type.name.toLowerCase()%].setID(rs.getInt("[%=r.name%]"));
+					[%=r.type.name.toLowerCase()%]s.add([%=r.type.name.toLowerCase()%]);
+				}
+			}
+			return [%=r.type.name.toLowerCase()%]s;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	[%}if(r.type.database.databasetype.value =2){%]
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%]([%=e.name%] element) {
+		ArrayList<[%=r.type.name%]> [%=r.type.name.toLowerCase()%]s = new ArrayList<[%=r.type.name%]>();
+		MongoCollection<Document> table = mongo_[%=r.type.database.name%].getCollection("[%=r.name%]_[%=e.name%]");
+		FindIterable<Document> documents = table.find();
+		for (Document document : documents) { 
+		   	if(document.getInteger("[%=r.correspondence.name%]")==element.getID()) {
+		    	[%=r.type.name%] [%=r.type.name.toLowerCase()%] = new [%=r.type.name%](this);
+		    	[%=r.type.name.toLowerCase()%].setID(document.getInteger("[%=r.name%]"));
+		    	[%=r.type.name.toLowerCase()%]s.add([%=r.type.name.toLowerCase()%]);
+		   	} 
+		}
+		return [%=r.type.name.toLowerCase()%]s;
+	}
+	
+	[%}}else{
+	if(r.type.database.databasetype.value=0){%]
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%]([%=e.name%] element) {
+		ResultSet rs =mysql_[%=r.type.database.name%].findTable("[%=r.type.name%]");
+		ArrayList<[%=r.type.name%]> [%=r.type.name.toLowerCase()%]s = new ArrayList<[%=r.type.name%]>();
+		try {
+			while(rs.next())
+			{
+				if(rs.getInt("[%=r.correspondence.name%]")==element.getID()) 
+				{
+					[%=r.type.name%] [%=r.type.name.toLowerCase()%] =new [%=r.type.name%](this);
+					[%=r.type.name.toLowerCase()%].setID(rs.getInt("id"));
+					[%=r.type.name.toLowerCase()%]s.add([%=r.type.name.toLowerCase()%]);
+				}
+			}
+			return [%=r.type.name.toLowerCase()%]s;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	[%}if(r.type.database.databasetype.value =2){%]
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%]([%=e.name%] element) {
+		ArrayList<[%=r.type.name%]> [%=r.type.name.toLowerCase()%]s = new ArrayList<[%=r.type.name%]>();
+		MongoCollection<Document> table = mongo_[%=r.type.database.name%].getCollection("[%=r.type.name%]");
+		FindIterable<Document> documents = table.find();
+		for (Document document : documents) {
+		    if(document.getInteger("[%=r.correspondence.name%]")!=null) {
+		    	if(document.getInteger("[%=r.correspondence.name%]")==element.getID()) {
+		    	[%=r.type.name%] [%=r.type.name.toLowerCase()%] = new [%=r.type.name%](this);
+		    	[%=r.type.name.toLowerCase()%].setID(document.getInteger("id"));
+		    	[%=r.type.name.toLowerCase()%]s.add([%=r.type.name.toLowerCase()%]);
+		    	}
+		    }
+		}
+		return [%=r.type.name.toLowerCase()%]s;
+	}
+		
+	[%}}}}}%]
+	[%for(e in s.entities){%]
+	public [%=e.name%] find[%=e.name%]By[%=e.fields[0].name.ftuc()%]([%=e.fields[0].type%] [%=e.fields[0].name.toLowerCase%]){
+	[%if(e.database.databasetype.value =0){%]
+		ResultSet rs =mysql_[%=e.database.name%].findTable("[%=e.name%]");
+		try {
+			while(rs.next())
+			{	
+			[%if(e.fields[0].type="String"){%]
+				if(rs.get[%=e.fields[0].type%]("[%=e.fields[0].name.toLowerCase()%]").equals([%=e.fields[0].name.toLowerCase()%]))
+			[%}else{%]
+				if(rs.get[%=e.fields[0].type%]("[%=e.fields[0].name.toLowerCase()%]")==[%=e.fields[0].name.toLowerCase()%])
+			[%}%]	
+				{
+					[%=e.name%] [%=e.name.toLowerCase()%] =new [%=e.name%](this);
+					[%=e.name.toLowerCase()%].setID(rs.getInt("id"));
+					return [%=e.name.toLowerCase()%];
+				}
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	[%}if(e.database.databasetype.value =2){%]
+		MongoCollection<Document> table = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		FindIterable<Document> documents = table.find();
+		for (Document document : documents) {
+		if(document.get("[%=e.fields[0].name.toLowerCase()%]").equals([%=e.fields[0].name.toLowerCase()%])) {
+		    	[%=e.name%] [%=e.name.toLowerCase()%] =new [%=e.name%](this);
+		    	[%=e.name.toLowerCase()%].setID(document.getInteger("id"));
+		    	return [%=e.name.toLowerCase()%];
+		    }
+		}
+		return null;
+		[%}%]
+	}
+	
+	[%}%]
+	[%for(e in s.entities){%]
+	public void delete[%=e.name.ftuc()%]([%=e.name%] [%=e.name.toLowerCase()%]) {
+		[%for(r in e.references){
+		var b = many(r,e);
+		var m = manytomany(r,e);
+		if(r.many = false and r.correspondence.many = false){%]
+		set([%=e.name.toLowerCase()%].get[%=r.type.name.ftuc()%](), "[%=e.name%]", null);
+		[%}if(r.many and r.correspondence.many = false){%]
+		for([%=r.type.name%] element : [%=e.name.toLowerCase()%].get[%=r.name.ftuc()%]()){
+			set(element, "[%=e.name%]", null);
+		}
+		[%}if(r.many = true and r.correspondence.many = true){
+		if(e.database.databasetype.value=0){%]
+		mysql_[%=e.database.name%].runSQL("DELETE FROM [%=r.name%]_[%=e.name%] WHERE [%=r.correspondence.name%] ="+ [%=e.name.toLowerCase()%].getID());
+		[%}if(e.database.databasetype.value=2){%]
+		MongoCollection<Document> table_[%=r.name%] = mongo_[%=e.database.name%].getCollection("[%=r.name%]_[%=e.name%]");
+		table_[%=r.name%].deleteMany(Filters.eq("[%=r.correspondence.name%]", [%=e.name.toLowerCase()%].getID()));
+		[%}for(r1 in r.type.references){
+		if(r1.type.name = e.name){
+		if(r.type.database.databasetype.value=0){%]
+		mysql_[%=r.type.database.name%].runSQL("DELETE FROM [%=r1.name%]_[%=r.type.name%] WHERE [%=r.correspondence.name%] ="+ [%=e.name.toLowerCase()%].getID());
+		[%}if(e.database.databasetype.value=2){%]
+		MongoCollection<Document> table_[%=r1.name%] = mongo_[%=r.type.database.name%].getCollection("[%=r1.name%]_[%=r.type.name%]");
+		table_[%=r1.name%].deleteMany(Filters.eq("[%=r.correspondence.name%]", [%=e.name.toLowerCase()%].getID()));
+		[%}}}}}
+		if(e.database.databasetype.value=0){%]
+		mysql_[%=e.database.name%].runSQL("DELETE FROM [%=e.name%] WHERE id ="+ [%=e.name.toLowerCase()%].getID());
+		[%}if(e.database.databasetype.value=2){%]
+		MongoCollection<Document> table = mongo_[%=e.database.name%].getCollection("[%=e.name%]");
+		table.deleteOne(Filters.eq("id", [%=e.name.toLowerCase()%].getID()));
+		[%}%]
+	}
+	
+	[%}%]
+	[%for(e in s.entities){
+		for(r in e.references){
+		var m = manytomany(r,e);
+		if(m){%]
+	public void delete[%=r.name.ftuc()%]([%=e.name%] [%=e.name.toLowerCase()%], [%=r.type.name%] [%=r.type.name.toLowerCase()%]) {
+		[%if(e.database.databasetype.value=0){%]
+		mysql_[%=e.database.name%].runSQL("DELETE FROM [%=r.name%] WHERE [%=e.name%] ="+ [%=e.name.toLowerCase()%].getID() +" and [%=r.type.name%] ="+ [%=r.type.name.toLowerCase()%].getID());			
+		[%}if(e.database.databasetype.value=2){%]
+		MongoCollection<Document> table = mongo_[%=e.database.name%].getCollection("[%=r.name%]");
+		Document query = new Document("$and", Arrays.asList(new Document("[%=e.name%]", [%=e.name.toLowerCase()%].getID()), new Document("[%=r.type.name%]", [%=r.type.name.toLowerCase()%].getID())));
+		[%}%]
+	}
+	
+	[%}}}%]
+}
+
+				
+	[% 
+	operation my(s :String):String {
+		if(s="String")
+			return "varchar(255)";
+		if(s="int")
+			return "int";
+		if(s="double")
+			return "double";
+		else
+		  	return "i don't have this type yet";
+	}
+	
+	operation many(r: Reference, e: Entity):Boolean{
+		for(r1 in r.type.references){
+			if(r1.many = true and r1.type.name = e.name)
+				return false;
+		}
+		return true;
+	}
+	
+	operation manytomany(r: Reference, e: Entity):Boolean{
+		for(r1 in r.type.references){
+			if(r1.many = true and r1.type.name = e.name and r.many =true and r<>r1)
+				return true;
+		}
+		return false;
+	}%]
+	
+
+

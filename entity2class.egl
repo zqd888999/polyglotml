@@ -1,0 +1,132 @@
+import java.util.ArrayList;
+
+public class [%=e.name%]{
+	
+	protected int id;
+	protected PolyglotDatabase db;
+	
+	public [%=e.name%](PolyglotDatabase db){
+		this.db = db;
+	}
+	
+	public void setID(int id) {
+		this.id=id;
+		
+	}
+	
+	public int getID() {
+		return id;
+	}
+	
+	[%for (r in e.references) {
+		var find = false;
+		if(r.many=false){%]
+	public [%=r.type.name%] get[%=r.name.ftuc()%](){
+		return db.get[%=r.name%](this);
+	}
+	
+	public void set[%=r.name.ftuc()%]([%=r.type.name%] element){
+		[%if(r.correspondence.many = false){%]
+		if(this.get[%=r.name.ftuc()%]()==null) {
+			db.set(this, "[%=r.name%]", element.getID());
+			element.set[%=e.name.ftuc()%](this);
+		}
+		else{
+			if(this.get[%=r.name.ftuc()%]().getID()!=element.getID()) {
+				db.set(this.get[%=r.name.ftuc()%](), "[%=e.name%]", null);
+				db.set(this, "[%=r.name%]", element.getID());
+				element.set[%=e.name.ftuc()%](this);
+			}
+		}
+		[%}else{%]
+		db.set(this, "[%=r.name%]", element.getID());
+		[%}%]
+	}
+	
+	[%}else{if(r.correspondence.many = true){%]
+	public void add[%=r.name.ftuc()%]([%=r.type.name%] element){
+		db.set[%=r.name.ftuc()%](this , element);
+		db.set[%=r.correspondence.name.ftuc()%](element, this);
+	}
+	
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%](){
+		return db.get[%=r.name.ftuc()%](this);
+	}
+	
+	public void delete[%=r.name.ftuc()%]([%=r.type.name%] element){
+		db.delete[%=r.name.ftuc()%](this , element);
+	}
+	
+	
+	[%}else{%]
+	public void add[%=r.name.ftuc()%]([%=r.type.name%] element){
+		element.set[%=e.name.ftuc()%](this);
+	}
+	
+	public ArrayList<[%=r.type.name%]> get[%=r.name.ftuc()%](){
+		return db.get[%=r.name.ftuc()%](this);
+	}
+	
+	[%find = loopReference(e,r);
+	if(find){%]
+	public ArrayList<[%=r.type.name%]> getAll[%=r.name.ftuc()%](){
+		ArrayList<[%=r.type.name%]> all = (ArrayList<[%=r.type.name%]>) get[%=r.name.ftuc()%]().clone(); 
+		[%for(r1 in r.type.references){
+		if(r.type.name = e.name and (r1.many = true and r1.correspondence.many = false)){%]
+		for([%=r.type.name%] member :get[%=r1.name.ftuc()%]()) {
+			if(member.get[%=r.name.ftuc()%]().size()!=0) {
+				ArrayList<[%=r.type.name%]> allchild = member.getAll[%=r.name.ftuc()%]();
+				if(allchild.size()>0)
+					all.addAll(allchild);
+			}
+		}
+
+		[%}}%]
+		return all;
+	}
+	
+	[%}if(find){%]
+	public [%=r.type.name%] Find[%=r.name%]([%=r.type.fields[0].type%] [%=r.type.fields[0].name.toLowerCase()%]) {
+		for([%=r.type.name%] element: getAll[%=r.name.ftuc()%]()) {
+			if(element.get[%=r.type.fields[0].name.ftuc()%]()==[%=r.type.fields[0].name.toLowerCase()%])
+				return element;
+		}
+		return null;
+	}
+	
+	[%}else{%]
+	public [%=r.type.name%] Find[%=r.name%]([%=r.type.fields[0].type%] [%=r.type.fields[0].name.toLowerCase()%]) {
+		for([%=r.type.name%] element: get[%=r.name.ftuc()%]()) {
+			if(element.get[%=r.type.fields[0].name.ftuc()%]()==[%=r.type.fields[0].name.toLowerCase()%])
+				return element;
+		}
+		return null;
+	}
+	
+	[%}}}}%]
+	[%for (f in e.fields) { %]
+	public [%=f.type%] get[%=f.name.ftuc()%]() {
+		[%if(f.type= "int"){%]
+		return Integer.parseInt(db.get(this,"[%=f.name%]"));
+		[%}if(f.type= "double"){%]
+		return Double.valueOf(db.get(this,"[%=f.name%]"));
+		[%}if(f.type= "String"){%]
+		return db.get(this,"[%=f.name%]");
+		[%}%]
+	}
+	
+	public void set[%=f.name.ftuc()%]([%=f.type%] [%=f.name%]) {
+		db.set(this,"[%=f.name%]",[%=f.name%]);
+	}
+	
+	[%}%]
+}	
+
+[%operation loopReference(e:Entity, r:Reference):Boolean{
+	for(r1 in r.type.references){
+		if(e.name = r.type.name and r.type.name= r1.type.name and (r.many=true and r.correspondence.many = false) and (r1.many = true and r1.correspondence.many = false))
+			return true;
+	}
+	return false;
+}%]
+	
